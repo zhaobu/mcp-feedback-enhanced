@@ -466,6 +466,7 @@
         const summaryContent = Utils.safeQuerySelector('#summaryContent');
         if (summaryContent) {
             summaryContent.innerHTML = renderedContent;
+            summaryContent.setAttribute('data-raw-markdown', summary || '');
             console.log('✅ 已更新分頁模式摘要內容（Markdown 渲染）');
         } else {
             console.warn('⚠️ 找不到 #summaryContent 元素');
@@ -474,6 +475,7 @@
         const combinedSummaryContent = Utils.safeQuerySelector('#combinedSummaryContent');
         if (combinedSummaryContent) {
             combinedSummaryContent.innerHTML = renderedContent;
+            combinedSummaryContent.setAttribute('data-raw-markdown', summary || '');
             console.log('✅ 已更新合併模式摘要內容（Markdown 渲染）');
         } else {
             console.warn('⚠️ 找不到 #combinedSummaryContent 元素');

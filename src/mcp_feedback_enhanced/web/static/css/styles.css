@@ -1440,7 +1440,74 @@ h3.combined-section-title {
     margin: 0;
 }
 
+/* 摘要區域 section-header 佈局 */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
 
+/* 摘要內容包裝器（用於摘要分頁的複製按鈕定位） */
+.summary-content-wrapper {
+    position: relative;
+}
+
+/* 複製摘要按鈕 */
+.btn-copy-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+.btn-copy-summary:hover {
+    border-color: var(--accent-color);
+    background: rgba(0, 122, 204, 0.1);
+    color: var(--accent-color);
+}
+
+.btn-copy-summary:active {
+    transform: scale(0.95);
+}
+
+.btn-copy-summary .copy-icon {
+    font-size: 13px;
+}
+
+.btn-copy-summary .copy-text {
+    font-size: 12px;
+}
+
+/* 摘要分頁中的複製按鈕 - 懸浮在右上角 */
+.summary-content-wrapper > .btn-copy-summary {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    opacity: 0.6;
+    transition: opacity 0.2s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.summary-content-wrapper:hover > .btn-copy-summary {
+    opacity: 1;
+}
+
+/* 複製成功狀態 */
+.btn-copy-summary.copy-success {
+    border-color: #4caf50;
+    background: rgba(76, 175, 80, 0.1);
+    color: #4caf50;
+}
 
 /* Combined 標籤頁提交按鈕樣式 */
 .combined-submit-btn {

@@ -321,8 +321,17 @@ def setup_routes(manager: "WebUIManager"):
                 current_session = manager.get_current_session()
                 if current_session and current_session.websocket == websocket:
                     await handle_websocket_message(manager, current_session, message)
+                elif current_session:
+                    # 會話已切換但 WebSocket 連接仍然有效
+                    # 嘗試將 WebSocket 轉移到當前會話並繼續處理
+                    debug_log(
+                        f"會話已切換，WebSocket 連接不匹配，"
+                        f"嘗試重新綁定到當前會話 {current_session.session_id}"
+                    )
+                    current_session.websocket = websocket
+                    await handle_websocket_message(manager, current_session, message)
                 else:
-                    debug_log("會話已切換或 WebSocket 連接不匹配，忽略消息")
+                    debug_log("沒有活躍會話，忽略消息")
                     break
 
         except WebSocketDisconnect:

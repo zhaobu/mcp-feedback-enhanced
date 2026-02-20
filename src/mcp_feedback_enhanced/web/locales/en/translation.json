@@ -111,7 +111,10 @@
     },
     "combined": {
         "summaryTitle": "📋 AI Work Summary",
-        "feedbackTitle": "💬 Provide Feedback"
+        "feedbackTitle": "💬 Provide Feedback",
+        "copySummary": "Copy",
+        "copySummarySuccess": "Summary copied to clipboard",
+        "copied": "Copied"
     },
     "settingsUI": {
         "title": "⚙️ Settings",

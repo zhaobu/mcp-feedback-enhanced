@@ -31,7 +31,8 @@ import sys
 from typing import Annotated, Any
 
 from fastmcp import FastMCP
-from mcp.types import ImageContent, TextContent
+from fastmcp.utilities.types import Image as MCPImage
+from mcp.types import TextContent
 from pydantic import Field
 
 # 導入統一的調試功能
@@ -359,15 +360,15 @@ def create_feedback_text(feedback_data: dict) -> str:
     return "\n\n".join(text_parts) if text_parts else "用戶未提供任何回饋內容。"
 
 
-def process_images(images_data: list[dict]) -> list[ImageContent]:
+def process_images(images_data: list[dict]) -> list[MCPImage]:
     """
-    處理圖片資料，轉換為 MCP ImageContent 對象
+    處理圖片資料，轉換為 MCP 圖片對象
 
     Args:
         images_data: 圖片資料列表
 
     Returns:
-        List[ImageContent]: MCP ImageContent 對象列表
+        List[MCPImage]: MCP 圖片對象列表
     """
     mcp_images = []
 
@@ -379,46 +380,37 @@ def process_images(images_data: list[dict]) -> list[ImageContent]:
 
             # 檢查數據類型並相應處理
             if isinstance(img["data"], bytes):
-                # 如果是原始 bytes 數據，轉換為 base64 字符串
+                # 如果是原始 bytes 數據，直接使用
                 image_bytes = img["data"]
-                image_b64 = base64.b64encode(image_bytes).decode("utf-8")
                 debug_log(
                     f"圖片 {i} 使用原始 bytes 數據，大小: {len(image_bytes)} bytes"
                 )
             elif isinstance(img["data"], str):
-                # 如果是 base64 字符串，直接使用
-                image_b64 = img["data"]
-                debug_log(
-                    f"圖片 {i} 已是 base64 字符串，長度: {len(image_b64)} chars"
-                )
+                # 如果是 base64 字符串，進行解碼
+                image_bytes = base64.b64decode(img["data"])
+                debug_log(f"圖片 {i} 從 base64 解碼，大小: {len(image_bytes)} bytes")
             else:
                 debug_log(f"圖片 {i} 數據類型不支援: {type(img['data'])}")
                 continue
 
-            if len(image_b64) == 0:
+            if len(image_bytes) == 0:
                 debug_log(f"圖片 {i} 數據為空，跳過")
                 continue
 
-            # 根據文件名推斷 MIME 類型
+            # 根據文件名推斷格式
             file_name = img.get("name", "image.png")
             if file_name.lower().endswith((".jpg", ".jpeg")):
-                mime_type = "image/jpeg"
+                image_format = "jpeg"
             elif file_name.lower().endswith(".gif"):
-                mime_type = "image/gif"
-            elif file_name.lower().endswith(".webp"):
-                mime_type = "image/webp"
+                image_format = "gif"
             else:
-                mime_type = "image/png"  # 默認使用 PNG
+                image_format = "png"  # 默認使用 PNG
 
-            # 創建標準 MCP ImageContent 對象
-            image_content = ImageContent(
-                type="image",
-                data=image_b64,
-                mimeType=mime_type,
-            )
-            mcp_images.append(image_content)
+            # 創建 MCPImage 對象
+            mcp_image = MCPImage(data=image_bytes, format=image_format)
+            mcp_images.append(mcp_image)
 
-            debug_log(f"圖片 {i} ({file_name}) 處理成功，MIME: {mime_type}")
+            debug_log(f"圖片 {i} ({file_name}) 處理成功，格式: {image_format}")
 
         except Exception as e:
             # 使用統一錯誤處理（不影響 JSON RPC）
@@ -457,7 +449,7 @@ async def interactive_feedback(
         timeout: Timeout in seconds for waiting user feedback (default: 600 seconds)
 
     Returns:
-        list: List containing TextContent and ImageContent objects representing user feedback
+        list: List containing TextContent and MCPImage objects representing user feedback
     """
     # 環境偵測
     is_remote = is_remote_environment()
@@ -487,31 +479,31 @@ async def interactive_feedback(
         # 建立回饋項目列表
         feedback_items = []
 
-        # 優先添加用戶的純文字回饋（放在最前面，確保 AI 客戶端能直接看到）
-        if result.get("interactive_feedback"):
-            feedback_items.append(
-                TextContent(
-                    type="text",
-                    text=f"=== 用戶回饋 ===\n{result['interactive_feedback']}",
-                )
-            )
-            debug_log("用戶文字回饋已添加")
+        # 添加文字回饋
+        if (
+            result.get("interactive_feedback")
+            or result.get("command_logs")
+            or result.get("images")
+        ):
+            feedback_text = create_feedback_text(result)
+            feedback_items.append(TextContent(type="text", text=feedback_text))
+            debug_log("文字回饋已添加")
 
-        # 添加命令執行日誌（如果有）
-        if result.get("command_logs"):
-            feedback_items.append(
-                TextContent(
-                    type="text",
-                    text=f"=== 命令執行日誌 ===\n{result['command_logs']}",
-                )
-            )
-            debug_log("命令日誌已添加")
-
-        # 添加圖片回饋
-        if result.get("images"):
+        # 添加圖片回饋 - 只有當未啟用 Base64 相容模式時才添加 MCPImage
+        # 因為 Cursor 等客戶端不支援 MCPImage 類型的序列化
+        enable_base64_detail = result.get("settings", {}).get(
+            "enable_base64_detail", False
+        )
+        if result.get("images") and not enable_base64_detail:
             mcp_images = process_images(result["images"])
+            # 修復 arg-type 錯誤 - 直接擴展列表
             feedback_items.extend(mcp_images)
             debug_log(f"已添加 {len(mcp_images)} 張圖片")
+        elif result.get("images") and enable_base64_detail:
+            debug_log(
+                f"Base64 相容模式已啟用，跳過 MCPImage 對象創建，"
+                f"圖片數據已包含在文字回饋中"
+            )
 
         # 確保至少有一個回饋項目
         if not feedback_items:

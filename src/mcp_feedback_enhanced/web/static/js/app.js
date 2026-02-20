@@ -339,6 +339,24 @@
                 });
             }
 
+            // 複製 AI 摘要按鈕（工作區分頁）
+            const copyCombinedSummaryBtn = window.MCPFeedback.Utils.safeQuerySelector('#copyCombinedSummaryBtn');
+            if (copyCombinedSummaryBtn) {
+                copyCombinedSummaryBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    self.copySummaryContent(copyCombinedSummaryBtn);
+                });
+            }
+
+            // 複製 AI 摘要按鈕（摘要分頁）
+            const copySummaryBtn = window.MCPFeedback.Utils.safeQuerySelector('#copySummaryBtn');
+            if (copySummaryBtn) {
+                copySummaryBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    self.copySummaryContent(copySummaryBtn);
+                });
+            }
+
             // 快捷鍵
             document.addEventListener('keydown', function(e) {
                 // Ctrl+Enter 提交回饋
@@ -712,8 +730,10 @@
      * 處理 WebSocket 訊息（防抖版本）
      */
     FeedbackApp.prototype.handleWebSocketMessage = function(data) {
-        // 命令輸出相關的訊息不應該使用防抖，需要立即處理
-        if (data.type === 'command_output' || data.type === 'command_complete' || data.type === 'command_error') {
+        // 命令輸出、回饋確認、通知等關鍵訊息不應使用防抖，需要立即處理
+        // 防抖可能導致 feedback_received/notification 與 session_updated 衝突時被丟棄
+        if (data.type === 'command_output' || data.type === 'command_complete' || data.type === 'command_error'
+            || data.type === 'feedback_received' || data.type === 'notification') {
             this._originalHandleWebSocketMessage(data);
         } else if (this._debouncedHandleWebSocketMessage) {
             // 其他訊息類型使用防抖
@@ -866,7 +886,19 @@
                 self.refreshPageContent();
 
                 // 3. 重置表單狀態
-                self.clearFeedback();
+                // 只有在反饋已經成功提交後才清空輸入內容
+                // 如果用戶正在輸入但還沒提交，保留他們的輸入
+                var currentState = self.uiManager ? self.uiManager.getFeedbackState() : null;
+                if (currentState === window.MCPFeedback.Utils.CONSTANTS.FEEDBACK_SUBMITTED) {
+                    console.log('📝 反饋已提交，清空表單內容');
+                    self.clearFeedback();
+                } else {
+                    console.log('📝 反饋未提交，保留用戶輸入內容');
+                    // 只清空圖片（圖片已隨反饋提交或不需要），但保留文字
+                    if (self.uiManager) {
+                        self.uiManager.resetFeedbackForm(false);
+                    }
+                }
 
                 // 4. 重置回饋狀態為等待中
                 if (self.uiManager) {
@@ -1345,6 +1377,55 @@
                 }
                 document.body.removeChild(textarea);
             });
+    };
+
+    /**
+     * 複製 AI 摘要內容
+     * @param {HTMLElement} button - 觸發複製的按鈕元素，用於視覺反饋
+     */
+    FeedbackApp.prototype.copySummaryContent = function(button) {
+        console.log('📋 複製 AI 摘要內容...');
+
+        // 從 combinedSummaryContent 或 summaryContent 取得摘要
+        var summaryEl = window.MCPFeedback.Utils.safeQuerySelector('#combinedSummaryContent')
+            || window.MCPFeedback.Utils.safeQuerySelector('#summaryContent');
+
+        if (!summaryEl || !summaryEl.textContent.trim()) {
+            window.MCPFeedback.Utils.showMessage(
+                window.i18nManager ? window.i18nManager.t('feedback.noContent', '沒有可複製的內容') : '沒有可複製的內容',
+                window.MCPFeedback.Utils.CONSTANTS.MESSAGE_WARNING
+            );
+            return;
+        }
+
+        // 優先從 data-raw-markdown 屬性取得原始 Markdown 格式文字
+        var rawMarkdown = summaryEl.getAttribute('data-raw-markdown');
+        var textContent = (rawMarkdown && rawMarkdown.trim()) ? rawMarkdown : (summaryEl.innerText || summaryEl.textContent);
+
+        var successMsg = window.i18nManager
+            ? window.i18nManager.t('combined.copySummarySuccess', '摘要內容已複製到剪貼板')
+            : '摘要內容已複製到剪貼板';
+
+        // 按鈕視覺反饋
+        function showButtonSuccess(btn) {
+            if (!btn) return;
+            var originalHTML = btn.innerHTML;
+            btn.classList.add('copy-success');
+            btn.innerHTML = '<span class="copy-icon">✅</span><span class="copy-text">' +
+                (window.i18nManager ? window.i18nManager.t('combined.copied', '已複製') : '已複製') +
+                '</span>';
+            setTimeout(function() {
+                btn.classList.remove('copy-success');
+                btn.innerHTML = originalHTML;
+            }, 2000);
+        }
+
+        // 使用統一工具複製
+        window.MCPFeedback.Utils.copyToClipboard(textContent, successMsg).then(function(success) {
+            if (success) {
+                showButtonSuccess(button);
+            }
+        });
     };
 
     /**

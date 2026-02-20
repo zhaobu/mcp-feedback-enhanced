@@ -501,8 +501,13 @@
             <!-- ===== AI 摘要分頁 ===== -->
             <div id="tab-summary" class="tab-content">
                 <div class="input-group">
-                    <div id="summaryContent" class="text-input" style="min-height: 300px; cursor: text; padding: 12px; line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word;" data-dynamic-content="aiSummary">
-                        {{ summary }}
+                    <div class="summary-content-wrapper">
+                        <button type="button" class="btn-copy-summary" id="copySummaryBtn" data-i18n-title="combined.copySummary" title="複製摘要內容">
+                            <span class="copy-icon">📋</span>
+                        </button>
+                        <div id="summaryContent" class="text-input" style="min-height: 300px; cursor: text; padding: 12px; line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word;" data-dynamic-content="aiSummary">
+                            {{ summary }}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -602,6 +607,9 @@
                     <div class="combined-section">
                         <div class="section-header">
                             <h3 class="combined-section-title" data-i18n="combined.summaryTitle">📋 AI 工作摘要</h3>
+                            <button type="button" class="btn-copy-summary" id="copyCombinedSummaryBtn" data-i18n-title="combined.copySummary" title="複製摘要內容">
+                                <span class="copy-icon">📋</span><span class="copy-text" data-i18n="combined.copySummary">複製</span>
+                            </button>
                         </div>
                         <div class="combined-summary">
                             <div id="combinedSummaryContent" class="text-input" style="min-height: 200px; cursor: text; padding: 12px; line-height: 1.6; word-wrap: break-word; overflow-wrap: break-word;" data-dynamic-content="aiSummary">{{ summary }}</div>
